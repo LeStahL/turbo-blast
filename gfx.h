@@ -279,6 +279,7 @@ const char *gfx_frag =
 ""
 ""
 "e=e+1.*e*e*e;"
+"e+=.4*sin(iTime);"
 ""
 "c1=vec4 (clamp(e,0.,1.),1.);"
 "}"

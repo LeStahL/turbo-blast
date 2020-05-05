@@ -138,7 +138,7 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
 
 	RegisterClassEx(&wc);
     
-    HWND hwnd = CreateWindowEx(0, WindowClass, ":: Team210 :: GO - MAKE A DEMO ::", WS_POPUP | WS_VISIBLE, 0, 0, 1280, 720, NULL, NULL, hInstance, 0);
+    HWND hwnd = CreateWindowEx(0, WindowClass, "210", WS_POPUP | WS_VISIBLE, 0, 0, 1280, 720, NULL, NULL, hInstance, 0);
     
     DEVMODE dm = { 0 };
     dm.dmSize = sizeof(dm);
@@ -220,7 +220,7 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
     sfx_sequence_texture_location,
     sfx_sequence_width_location;
 
-float duration1 = 188.,
+float duration1 = 33.5667,
     *smusic1;
 
 #include "sequence.h"
@@ -297,7 +297,7 @@ float duration1 = 188.,
         
         double tstart = (double)(music_block*block_size);
 
-        glUniform1f(sfx_volumelocation, 1.);
+        // glUniform1f(sfx_volumelocation, 1.);
         glUniform1f(sfx_samplerate_location, (float)sample_rate);
         glUniform1f(sfx_blockoffset_location, (float)tstart);
         glUniform1f(sfx_texs_location, (float)texs);
@@ -377,19 +377,18 @@ float duration1 = 188.,
 
     // Play sound
     HWAVEOUT hWaveOut = 0;
+    WAVEHDR header = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	WAVEFORMATEX wfx = { WAVE_FORMAT_PCM, channels, sample_rate, sample_rate*channels*n_bits_per_sample / 8, channels*n_bits_per_sample / 8, n_bits_per_sample, 0 };
-	waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
-
-    WAVEHDR header;
-	header.lpData = smusic1;
-	header.dwBufferLength = 4 * music1_size;
-	waveOutPrepareHeader(hWaveOut, &header, sizeof(WAVEHDR));
-	waveOutWrite(hWaveOut, &header, sizeof(WAVEHDR));
+    waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
+    header.lpData = smusic1;
+    header.dwBufferLength = 4 * (music1_size);
+    waveOutPrepareHeader(hWaveOut, &header, sizeof(WAVEHDR));
+    waveOutWrite(hWaveOut, &header, sizeof(WAVEHDR));
 	waveOutRestart(hWaveOut);
     
     float t_now = 0.;
     
-    while(1)
+    while(SwapBuffers(hdc))
     {
         MSG msg = { 0 };
         while ( PeekMessageA( &msg, NULL, 0, 0, PM_REMOVE ) )
@@ -418,8 +417,10 @@ float duration1 = 188.,
         glVertex3f(1,1,0);
         glVertex3f(1,-1,0);
         glEnd();
-        
-        SwapBuffers(hdc);
+
+#ifdef DEBUG
+	printf("Time: %le\n", t_now);
+#endif
     }
     
     return 0;

@@ -350,6 +350,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     // Gamma
     col = col + 1.*col*col*col;
+    col += .4*sin(iTime);
     // col *= col;
     //col = col + 1.*col*col;
     
