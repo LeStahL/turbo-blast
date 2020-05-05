@@ -21,6 +21,8 @@
 
 out vec4 gl_FragColor;
 
+uniform float iTime;
+
 const vec2 iResolution = vec2(1920, 1080);
 const float fsaa = 9.;
 

@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(blast)
 
-set(DEBUG OFF)
+set(DEBUG ON)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/thirdparty/FindWindowsSDK")
 
@@ -36,7 +36,7 @@ set(SOURCE "${PROJECT_SOURCE_DIR}/${PROJECT_NAME}.c")
 
 set(COMPILER_COMMAND "\"${CMAKE_C_COMPILER}\" /I\"${WINDOWS_INCLUDE}\" /I\"${STDC_INCLUDE}\" /DWIN32 /c /Gy /O1 /fp:fast /GR- /GS- /MT \"${PROJECT_SOURCE_DIR}/${PROJECT_NAME}.c\" /Fo\"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.obj\"")
 if(DEBUG)
-    set(LINKER_COMMAND "${CRINKLER} /ENTRY:demo /SUBSYSTEM:Windows /LARGEADDRESSAWARE /PROGRESSGUI /COMPMODE:FAST /PRIORITY:NORMAL \"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.obj\" opengl32.lib User32.lib Winmm.lib Kernel32.lib Gdi32.lib /out:\"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.exe\"")
+    set(LINKER_COMMAND "${CRINKLER} /ENTRY:demo /SUBSYSTEM:Windows /LARGEADDRESSAWARE /PROGRESSGUI /COMPMODE:FAST /PRIORITY:NORMAL \"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.obj\"  opengl32.lib User32.lib Winmm.lib Kernel32.lib Gdi32.lib User32.lib Winmm.lib ucrt.lib msvcrt.lib vcruntime.lib Vfw32.lib /out:\"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.exe\"")
 else()
     set(LINKER_COMMAND "${CRINKLER} /ENTRY:demo /SUBSYSTEM:Windows /LARGEADDRESSAWARE /PROGRESSGUI /COMPMODE:VERYSLOW /PRIORITY:NORMAL \"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.obj\" opengl32.lib User32.lib Winmm.lib Kernel32.lib Gdi32.lib /out:\"${PROJECT_BINARY_DIR}/${PROJECT_NAME}.exe\"")
 endif()

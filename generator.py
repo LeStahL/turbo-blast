@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import argparse, json, os.path
+import argparse, json, os.path, datetime
 import GLSLLexer130
 
 def tokenIs(token, identifier):
@@ -104,7 +104,7 @@ def compressSource(source):
     characters = {}
     numbers = {}
     for character in source:
-        if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_":
             if character in "0123456789":
                 if character in numbers:
                     numbers[character] += 1
@@ -124,6 +124,10 @@ def compressSource(source):
 
     # Simple optimizations
     while token != None:
+        if tokenIsPreprocessorDirective(token):
+            lineHasPreprocessorDirective = True
+        if tokenIs(token, "CRLF"):
+            lineHasPreprocessorDirective = False
         if (not tokenIs(token, "SINGLELINE_COMMENT")) and (not tokenIs(token, "MULTILINE_COMMENT")):
             smallerSource += token.tokenData
             if tokenNeedsSpace(token):
@@ -141,8 +145,16 @@ def compressSource(source):
                     ids[token.tokenData] += 1
                 else:
                     ids[token.tokenData] = 1
+            if lineHasPreprocessorDirective:
+                token = lexer.token()
+                if not tokenIs(token, "LPAREN"):
+                    smallerSource += ' '
+                continue
+        # print("token: type", token.tokenName, "data", token.tokenData)
         token = lexer.token()
     
+    lineHasPreprocessorDirective = False
+
     # Sort the ids by probability
     ids = {k: v for k, v in reversed(sorted(ids.items(), key=lambda item: item[1]))}
     idList = list(ids.keys())
@@ -153,15 +165,19 @@ def compressSource(source):
         dictionary[id] = generateIdentifier(characters, numbers, i)
 
     # print(smallerSource)
-    # f = open("smallerSource", "wt")
-    # f.write(smallerSource)
-    # f.close()
+    f = open("smallerSource"+str(datetime.datetime.now()).replace(':', '-'), "wt")
+    f.write(smallerSource)
+    f.close()
 
     # Context model optimizations
     smallestSource = ""
     lexer = GLSLLexer130.GLSLLexer130(smallerSource)
     token = lexer.token()
     while token != None:
+        # if lineHasPreprocessorDirective:
+            # if tokenIs(token, "IDENTIFIER"):
+                # print("identifier:", token.tokenData)
+                # print( "dict entry:",dictionary[token.tokenData])
         if tokenIsPreprocessorDirective(token):
             lineHasPreprocessorDirective = True
             smallestSource += "\\n"
@@ -170,7 +186,16 @@ def compressSource(source):
                 smallestSource += "\\n"
             lineHasPreprocessorDirective = False
         if tokenIs(token, "IDENTIFIER"):
-            smallestSource += dictionary[token.tokenData]
+            # print("identifier:", token.tokenData,"isUniform:", isUniform)
+            if token.tokenData in uniforms:
+                smallestSource += token.tokenData
+            else:
+                smallestSource += dictionary[token.tokenData]
+                if lineHasPreprocessorDirective:
+                    token = lexer.token()
+                    if not tokenIs(token, "LPAREN"):
+                        smallestSource += ' '
+                    continue
         else:
             smallestSource += token.tokenData
             if tokenNeedsSpace(token):
@@ -179,9 +204,9 @@ def compressSource(source):
         token = lexer.token()
     
     # print(smallestSource)
-    # ff = open("smallestSource", "wt")
-    # ff.write(smallestSource)
-    # ff.close()
+    ff = open("smallestSource"+str(datetime.datetime.now()).replace(':', '-'), "wt")
+    ff.write(smallestSource)
+    ff.close()
 
     return smallestSource
 
@@ -208,7 +233,7 @@ f = open(rest[0], "rt")
 source = f.read()
 f.close()
 
-f = open(args.out, "wt")
+fa = open(args.out, "wt")
 variableName = args.out.split('\\')[-1].replace('.h', '') + '_frag'
-f.write(sourceVariable(variableName, compressSource(source)))
-f.close()
+fa.write(sourceVariable(variableName, compressSource(source)))
+fa.close()

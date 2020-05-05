@@ -15,6 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define DEBUG
+
 #include "Windows.h"
 #include "GL/GL.h"
 #include "glext.h"
@@ -31,6 +33,60 @@ PFNGLUNIFORM1FPROC glUniform1f;
 PFNGLUNIFORM1IPROC glUniform1i;
 PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
 PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
+
+#ifdef DEBUG
+
+PFNGLGETSHADERIVPROC glGetShaderiv;
+PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+PFNGLGETPROGRAMIVPROC glGetProgramiv;
+PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
+
+#include <stdio.h>
+#include <stdlib.h>
+
+// TODO: remove below
+void debug(int shader_handle)
+{
+	printf("    Debugging shader with handle %d.\n", shader_handle);
+	int compile_status = 0;
+	glGetShaderiv(shader_handle, GL_COMPILE_STATUS, &compile_status);
+	if(compile_status != GL_TRUE)
+	{
+		printf("    FAILED.\n");
+		GLint len;
+		glGetShaderiv(shader_handle, GL_INFO_LOG_LENGTH, &len);
+		printf("    Log length: %d\n", len);
+		GLchar *CompileLog = (GLchar*)malloc(len*sizeof(GLchar));
+		glGetShaderInfoLog(shader_handle, len, NULL, CompileLog);
+		printf("    Error messages:\n%s\n", CompileLog);
+		free(CompileLog);
+	}
+	else
+		printf("    Shader compilation successful.\n");
+}
+
+void debugp(int program)
+{
+	printf("    Debugging program with handle %d.\n", program);
+	int compile_status = 0;
+	glGetProgramiv(program, GL_LINK_STATUS, &compile_status);
+	if(compile_status != GL_TRUE)
+	{
+		printf("    FAILED.\n");
+		GLint len;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
+		printf("    Log length: %d\n", len);
+		GLchar *CompileLog = (GLchar*)malloc(len*sizeof(GLchar));
+		glGetProgramInfoLog(program, len, NULL, CompileLog);
+		printf("    Error messages:\n%s\n", CompileLog);
+		free(CompileLog);
+	}
+	else
+		printf("    Program linking successful.\n");
+}
+// #else // DEBUG
+// #define printf(a)
+#endif //DEBUG
 
 size_t strlen(const char *str)
 {
@@ -53,6 +109,13 @@ void *malloc(size_t size)
 
 int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
+#ifdef DEBUG
+	AllocConsole();
+	freopen("CONIN$", "r", stdin);
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+#endif
+
     // Display demo window
 	CHAR WindowClass[]  = "Team210 Demo Window";
 
@@ -125,7 +188,13 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
     glUniform1i = (PFNGLUNIFORM1IPROC) wglGetProcAddress("glUniform1i");
     glGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC) wglGetProcAddress("glGenFramebuffers");
     glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC) wglGetProcAddress("glBindFramebuffer");
-    
+#ifdef DEBUG
+	glGetShaderiv = (PFNGLGETSHADERIVPROC) wglGetProcAddress("glGetShaderiv");
+	glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC) wglGetProcAddress("glGetShaderInfoLog");
+	glGetProgramiv = (PFNGLGETPROGRAMIVPROC) wglGetProcAddress("glGetProgramiv");
+	glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC) wglGetProcAddress("glGetProgramInfoLog");
+#endif
+
     ShowCursor(FALSE);
 
     float duration1 = 120;
@@ -154,11 +223,17 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
         sfx_handle = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(sfx_handle, 1, (GLchar **)&sfx_frag, &sfx_size);
     glCompileShader(sfx_handle);
-    
+#ifdef DEBUG
+	printf("sfx shader:\n");
+	debug(sfx_handle);
+#endif
     int sfx_program = glCreateProgram();
     glAttachShader(sfx_program, sfx_handle);
     glLinkProgram(sfx_program);
-    
+#ifdef DEBUG
+	printf("sfx program:\n");
+	debugp(sfx_handle);
+#endif
     glUseProgram(sfx_program);
     int sfx_samplerate_location = glGetUniformLocation(sfx_program, "d");
     int sfx_blockoffset_location = glGetUniformLocation(sfx_program, "a");
@@ -205,11 +280,17 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
         gfx_handle = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(gfx_handle, 1, (GLchar **)&gfx_frag, &gfx_size);
     glCompileShader(gfx_handle);
-    
+#ifdef DEBUG
+	printf("gfx shader:\n");
+	debug(gfx_handle);
+#endif
     int gfx_program = glCreateProgram();
     glAttachShader(gfx_program, gfx_handle);
     glLinkProgram(gfx_program);
-    
+#ifdef DEBUG
+	printf("gfx program:\n");
+	debugp(gfx_handle);
+#endif
     glUseProgram(gfx_program);
     int gfx_iTime_location = glGetUniformLocation(gfx_program, "a");
     
