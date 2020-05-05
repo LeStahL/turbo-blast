@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define DEBUG
+// #define DEBUG
 
 #include "Windows.h"
 #include "GL/GL.h"
@@ -344,8 +344,8 @@ float duration1 = 33.5667,
     glUseProgram(gfx_program);
     int gfx_iTime_location = glGetUniformLocation(gfx_program, "iTime");
     
-#ifdef DEBUG
 	int n_bits_per_sample = 16;
+#ifdef DEBUG
 
 	FILE *f = fopen("music.wav", "wb");
     fwrite("RIFF", 1, 4, f);

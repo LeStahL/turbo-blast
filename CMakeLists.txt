@@ -17,7 +17,8 @@
 cmake_minimum_required(VERSION 3.12)
 project(blast)
 
-set(DEBUG ON)
+# set(DEBUG ON)
+set(DEBUG OFF)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/thirdparty/FindWindowsSDK")
 
