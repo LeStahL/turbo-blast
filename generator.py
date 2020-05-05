@@ -165,9 +165,9 @@ def compressSource(source):
         dictionary[id] = generateIdentifier(characters, numbers, i)
 
     # print(smallerSource)
-    f = open("smallerSource"+str(datetime.datetime.now()).replace(':', '-'), "wt")
-    f.write(smallerSource)
-    f.close()
+    # f = open("smallerSource"+str(datetime.datetime.now()).replace(':', '-'), "wt")
+    # f.write(smallerSource)
+    # f.close()
 
     # Context model optimizations
     smallestSource = ""
@@ -204,9 +204,9 @@ def compressSource(source):
         token = lexer.token()
     
     # print(smallestSource)
-    ff = open("smallestSource"+str(datetime.datetime.now()).replace(':', '-'), "wt")
-    ff.write(smallestSource)
-    ff.close()
+    # ff = open("smallestSource"+str(datetime.datetime.now()).replace(':', '-'), "wt")
+    # ff.write(smallestSource)
+    # ff.close()
 
     return smallestSource
 

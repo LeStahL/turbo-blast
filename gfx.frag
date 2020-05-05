@@ -23,8 +23,8 @@ out vec4 gl_FragColor;
 
 uniform float iTime;
 
-const vec2 iResolution = vec2(1920, 1080);
-const float fsaa = 9.;
+const vec2 iResolution = vec2(1280, 720);
+const float fsaa = 1.;
 
 const float pi = acos(-1.);
 const vec3 c = vec3(1.,0.,-1.);

@@ -33,6 +33,8 @@ PFNGLUNIFORM1FPROC glUniform1f;
 PFNGLUNIFORM1IPROC glUniform1i;
 PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
 PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
+PFNGLACTIVETEXTUREPROC glActiveTexture;
+PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
 
 #ifdef DEBUG
 
@@ -42,6 +44,7 @@ PFNGLGETPROGRAMIVPROC glGetProgramiv;
 PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 // TODO: remove below
@@ -188,6 +191,8 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
     glUniform1i = (PFNGLUNIFORM1IPROC) wglGetProcAddress("glUniform1i");
     glGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC) wglGetProcAddress("glGenFramebuffers");
     glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC) wglGetProcAddress("glBindFramebuffer");
+	glActiveTexture = (PFNGLACTIVETEXTUREPROC) wglGetProcAddress("glActiveTexture");
+	glFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC) wglGetProcAddress("glFramebufferTexture2D");
 #ifdef DEBUG
 	glGetShaderiv = (PFNGLGETSHADERIVPROC) wglGetProcAddress("glGetShaderiv");
 	glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC) wglGetProcAddress("glGetShaderInfoLog");
@@ -197,64 +202,111 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
 
     ShowCursor(FALSE);
 
-    float duration1 = 120;
-    int sample_rate = 44100,
-        texs = 512,
-        block_size = 512*512,
-        nblocks1 = sample_rate * duration1 / block_size + 1,
-        music1_size = nblocks1 * block_size,
-        channels = 2;
-        
-    int snd_framebuffer, snd_texture;
+	int texs = 512,
+    block_size = 512 * 512,
+    channels = 2,
+    nblocks1,
+    sequence_texture_handle,
+    snd_framebuffer,
+    snd_texture,
+    sample_rate = 44100,
+    music1_size,
+    sfx_handle,
+    sfx_program,
+    sfx_samplerate_location,
+    sfx_blockoffset_location,
+    sfx_volumelocation,
+    sfx_texs_location,
+    sfx_sequence_texture_location,
+    sfx_sequence_width_location;
+
+float duration1 = 188.,
+    *smusic1;
+
+#include "sequence.h"
+	glGenTextures(1, &sequence_texture_handle);
+    glBindTexture(GL_TEXTURE_2D, sequence_texture_handle);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sequence_texture_size, sequence_texture_size, 0, GL_RGBA, GL_UNSIGNED_BYTE, sequence_texture);
     glGenFramebuffers(1, &snd_framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, snd_framebuffer);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     glGenTextures(1, &snd_texture);
-	glBindTexture(GL_TEXTURE_2D, snd_texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texs, texs, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glBindTexture(GL_TEXTURE_2D, snd_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texs, texs, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, snd_texture, 0);
     
-	float *smusic1 = (float*)malloc(4 * music1_size);
-	short *dest = (short*)smusic1;
-	for (int i = 0; i < 2 * music1_size; ++i)
-		dest[i] = 0;
-    
+    // Music allocs
+    nblocks1 = sample_rate * duration1 / block_size + 1;
+    music1_size = nblocks1 * block_size;
+    smusic1 = (float*)malloc(4 * music1_size);
+    short *dest = (short*)smusic1;
+    for (int i = 0; i < 2 * music1_size; ++i)
+        dest[i] = 0;
+
+    // Load music shader
 #include "sfx.h"
-    int sfx_size = strlen(sfx_frag),
-        sfx_handle = glCreateShader(GL_FRAGMENT_SHADER);
+    int sfx_size = strlen(sfx_frag);
+    sfx_handle = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(sfx_handle, 1, (GLchar **)&sfx_frag, &sfx_size);
     glCompileShader(sfx_handle);
 #ifdef DEBUG
-	printf("sfx shader:\n");
-	debug(sfx_handle);
+    debug(sfx_handle);
 #endif
-    int sfx_program = glCreateProgram();
+    sfx_program = glCreateProgram();
     glAttachShader(sfx_program, sfx_handle);
     glLinkProgram(sfx_program);
 #ifdef DEBUG
-	printf("sfx program:\n");
-	debugp(sfx_handle);
+    debugp(sfx_program);
 #endif
     glUseProgram(sfx_program);
-    int sfx_samplerate_location = glGetUniformLocation(sfx_program, "d");
-    int sfx_blockoffset_location = glGetUniformLocation(sfx_program, "a");
-    int sfx_volumelocation = glGetUniformLocation(sfx_program, "b");
-    int sfx_texs_location = glGetUniformLocation(sfx_program, "c");
-    
-    glViewport(0, 0, texs, texs);
+#ifndef SFX_VAR_ISAMPLERATE 
+#define SFX_VAR_ISAMPLERATE "iSampleRate"
+#endif
+#ifndef SFX_VAR_IBLOCKOFFSET 
+#define SFX_VAR_IBLOCKOFFSET "iBlockOffset"
+#endif
+#ifndef SFX_VAR_ITEXSIZE 
+#define SFX_VAR_ITEXSIZE "iTexSize"
+#endif
+#ifndef SFX_VAR_ISEQUENCE 
+#define SFX_VAR_ISEQUENCE "iSequence"
+#endif
+#ifndef SFX_VAR_ISEQUENCEWIDTH 
+#define SFX_VAR_ISEQUENCEWIDTH "iSequenceWidth"
+#endif
+    sfx_samplerate_location = glGetUniformLocation(sfx_program, SFX_VAR_ISAMPLERATE);
+    sfx_blockoffset_location = glGetUniformLocation(sfx_program, SFX_VAR_IBLOCKOFFSET);
+    sfx_texs_location = glGetUniformLocation(sfx_program, SFX_VAR_ITEXSIZE);
+    sfx_sequence_texture_location = glGetUniformLocation(sfx_program, SFX_VAR_ISEQUENCE);
+    sfx_sequence_width_location = glGetUniformLocation(sfx_program, SFX_VAR_ISEQUENCEWIDTH);
     
     for (int music_block = 0; music_block < nblocks1; ++music_block)
-	{
-// 		glBindFramebuffer(GL_FRAMEBUFFER, snd_framebuffer);
-// 		glUseProgram(sfx_program);
+    {
+        glViewport(0, 0, texs, texs);
+        
+        double tstart = (double)(music_block*block_size);
 
-// 		printf("Rendering SFX block %d/%d -> %le\n", music_block, nblocks1, .5*(float)music_block / (float)nblocks1);
-		double tstart = (double)(music_block*block_size);
+        glUniform1f(sfx_volumelocation, 1.);
+        glUniform1f(sfx_samplerate_location, (float)sample_rate);
+        glUniform1f(sfx_blockoffset_location, (float)tstart);
+        glUniform1f(sfx_texs_location, (float)texs);
+        glUniform1i(sfx_sequence_texture_location, 0);
+        glUniform1f(sfx_sequence_width_location, (float)sequence_texture_size);
 
-		glUniform1f(sfx_volumelocation, 1.);
-		glUniform1f(sfx_samplerate_location, (float)sample_rate);
-		glUniform1f(sfx_blockoffset_location, (float)tstart);
-		glUniform1i(sfx_texs_location, texs);
-
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, sequence_texture_handle);
+        
         glBegin(GL_QUADS);
         glVertex3f(-1,-1,0);
         glVertex3f(-1,1,0);
@@ -262,16 +314,14 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
         glVertex3f(1,-1,0);
         glEnd();
         
-        SwapBuffers(hdc);
+        glReadPixels(0, 0, texs, texs, GL_RGBA, GL_UNSIGNED_BYTE, smusic1 + music_block * block_size);
+        glFlush();
 
-		glReadPixels(0, 0, texs, texs, GL_RGBA, GL_UNSIGNED_BYTE, smusic1 + music_block * block_size);
-		glFlush();
-
-		unsigned short *buf = (unsigned short*)smusic1;
-		short *dest = (short*)smusic1;
+        unsigned short *buf = (unsigned short*)smusic1;
+        short *dest = (short*)smusic1;
         for (int j = 2 * music_block*block_size; j < 2 * (music_block + 1)*block_size; ++j)
             dest[j] = (buf[j] - (1 << 15));
-	}
+    }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
@@ -289,14 +339,44 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
     glLinkProgram(gfx_program);
 #ifdef DEBUG
 	printf("gfx program:\n");
-	debugp(gfx_handle);
+	debugp(gfx_program);
 #endif
     glUseProgram(gfx_program);
-    int gfx_iTime_location = glGetUniformLocation(gfx_program, "a");
+    int gfx_iTime_location = glGetUniformLocation(gfx_program, "iTime");
     
+#ifdef DEBUG
+	int n_bits_per_sample = 16;
+
+	FILE *f = fopen("music.wav", "wb");
+    fwrite("RIFF", 1, 4, f);
+    int data = 44 + 2*nblocks1*block_size;
+    fwrite(&data, sizeof(int32_t), 1, f); // file size
+//     // WAV info section
+    fwrite("WAVEfmt ", 1, 8, f); // This stuff needs to be present
+    data = 16;
+    fwrite(&data, sizeof(int32_t), 1, f); // Remaining chunk with info is 16 bytes
+    data = 0x0001;
+    fwrite(&data, sizeof(int16_t), 1, f); // PCM format identifier
+    data = 2;
+    fwrite(&data, sizeof(int16_t), 1, f); // number of channels
+    data = sample_rate;
+    fwrite(&data, sizeof(int32_t), 1, f); // sample rate
+    data = sample_rate*n_bits_per_sample*channels/8;
+    fwrite(&data, sizeof(int32_t), 1, f); // bytes per second
+    data = channels*(n_bits_per_sample+7)/8;
+    fwrite(&data, sizeof(int16_t), 1, f); // frame size
+    data = n_bits_per_sample;
+    fwrite(&data, sizeof(int16_t), 1, f); // bits per sample
+    // Data section
+    fwrite("data", 1, 4, f);
+    data = 2*nblocks1*block_size;
+    fwrite(&data, sizeof(int32_t), 1, f); // data size
+    fwrite(smusic1, sizeof(short), 2*nblocks1*block_size, f); // data
+    fclose(f);
+#endif
+
     // Play sound
     HWAVEOUT hWaveOut = 0;
-	int n_bits_per_sample = 16;
 	WAVEFORMATEX wfx = { WAVE_FORMAT_PCM, channels, sample_rate, sample_rate*channels*n_bits_per_sample / 8, channels*n_bits_per_sample / 8, n_bits_per_sample, 0 };
 	waveOutOpen(&hWaveOut, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
 
@@ -305,6 +385,7 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
 	header.dwBufferLength = 4 * music1_size;
 	waveOutPrepareHeader(hWaveOut, &header, sizeof(WAVEHDR));
 	waveOutWrite(hWaveOut, &header, sizeof(WAVEHDR));
+	waveOutRestart(hWaveOut);
     
     float t_now = 0.;
     
@@ -325,7 +406,7 @@ int WINAPI demo(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, in
         
         static MMTIME MMTime = { TIME_SAMPLES, 0};
 		waveOutGetPosition(hWaveOut, &MMTime, sizeof(MMTIME));
-		t_now = ((double)MMTime.u.sample)/( 44100.0);
+		t_now = ((double)MMTime.u.sample)/sample_rate;
         
         glUniform1f(gfx_iTime_location, t_now);
         
