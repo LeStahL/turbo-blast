@@ -95,6 +95,13 @@ def generateIdentifier(characters, numbers, index):
     else:
         return characterKeys[index % len(characterKeys)] + numberKeys[index // len(characterKeys)]
 
+def compressFloat(tokenData):
+    while tokenData[-1] == '0': tokenData = tokenData[:-1]
+    if tokenData[-1] != '.':
+        while tokenData[0] == '0': tokenData = tokenData[1:]
+    
+    return tokenData
+
 def compressSource(source):
     lexer = GLSLLexer130.GLSLLexer130(source)
     token = lexer.token()
@@ -129,7 +136,11 @@ def compressSource(source):
         if tokenIs(token, "CRLF"):
             lineHasPreprocessorDirective = False
         if (not tokenIs(token, "SINGLELINE_COMMENT")) and (not tokenIs(token, "MULTILINE_COMMENT")):
-            smallerSource += token.tokenData
+            if tokenIs(token, "FLOAT_CONSTANT"):
+                smallerSource += compressFloat(token.tokenData)
+                print(compressFloat(token.tokenData))
+            else:
+                smallerSource += token.tokenData
             if tokenNeedsSpace(token):
                 smallerSource += ' '
         
